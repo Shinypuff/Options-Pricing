@@ -197,10 +197,10 @@ class Option():
         return round(self.rho_call, 5), round(self.rho_put, 5)
     
     def full_calc(self):
-        self.greeks_df = pd.DataFrame(columns = [' ', 'Call', 'Put'])
+        self.greeks_df = pd.DataFrame(columns = [' ', 'Колл', 'Пут'])
         
-        self.greeks_df[' '] = ['Black-Scholes price', 'Delta', 'Gamma', 'Vega', 'Theta', 'Rho']
-        self.greeks_df[['Call', 'Put']] = [self.BSM(True), 
+        self.greeks_df[' '] = ['Стоимость опциона', 'Дельта', 'Гамма', 'Вега', 'Тета', 'Ро']
+        self.greeks_df[['Колл', 'Пут']] = [self.BSM(True),
                                            self.get_delta(), 
                                            self.get_gamma(), 
                                            self.get_vega(), 
