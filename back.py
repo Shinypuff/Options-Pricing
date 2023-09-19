@@ -212,22 +212,31 @@ class Option():
 
 
 def get_board(asset):
-    cols = ['Тикер', 'Страйк', 'Теор. Цена', 'IV, %', 'Посл. Цена', 'Bid', 'Offer']
+    cols = ['Тикер', 'BOARDID (string:12)', 'Страйк', 'Теор. Цена', 'IV, %', 'Посл. Цена', 'Bid', 'Offer', 'VOLTODAY (int64)', 'OPENPOSITION (double)']
     sequence = ['Тикер', 'Теор. Цена', 'Посл. Цена', 'Bid', 'Offer', 'Страйк', 'IV, %']
     
     url = f'https://iss.moex.com/iss/statistics/engines/futures/markets/options/assets/{asset}/optionboard.html'
 
-    call, put, central = pd.read_html(url)
+    call, put, tmp = pd.read_html(url)
     
-    call = call.drop(['BOARDID (string:12)', 'OPENPOSITION (double)', 'VOLTODAY (int64)'], axis=1)
-    put = put.drop(['BOARDID (string:12)', 'OPENPOSITION (double)', 'VOLTODAY (int64)'], axis=1)
+    ### Данные для заполнения ###
+    
+    centr_strike, price = tmp['CENTRALSTRIKE (double)'][0], tmp['UNDERLYINGSETTLEPRICE (double)'][0]
+    
+    ### Доска опционов ###
     
     call.columns, put.columns = cols, cols
+    tab = pd.concat([call[sequence], put[sequence].iloc[:, ::-1].iloc[:, 2:]], axis=1).fillna(' ')
     
-    res = pd.concat([call[sequence], put[sequence].iloc[:, ::-1].iloc[:, 2:]], axis=1).fillna(' ')
+    ### График ###
     
-    plot = px.line(res, 
+    plot = px.line(tab, 
                    x = 'Страйк', 
                    y = 'IV, %',
                    labels={'Страйк':'Цена Базового Актива', 'IV, %':'Волатильность, %'},
                    width=600, height=400)
+
+    
+    volatility = tab[tab['Страйк']==centr_strike]['IV, %'].values[0]
+    
+    return tab, [centr_strike, price, volatility], plot
