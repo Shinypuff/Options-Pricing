@@ -45,9 +45,11 @@ def get_attributes(asset):
                          style={"marginTop": "20px", "width": "317px"}))
 
 
-@app.callback(Output("table_update", "children"), [Input("price_field", "value"), Input("strike_field", "value"), Input("sigma_field", "value"), Input("risk_free_field", "value"), Input("start_date_field", 'start_date'), Input("start_date_field", 'end_date')])
-def table(price, strike, sigma,risk_free, start_date, end_date):
+@app.callback(Output("table_update", "children"), [Input("price_field", "value"), Input("strike_field", "value"), Input("sigma_field", "value"), Input("risk_free_field", "value"), Input("start_date_field", 'start_date'), Input("start_date_field", 'end_date'), Input("type_choice", "value")])
+def table(price, strike, sigma,risk_free, start_date, end_date, type_choice):
     check_val = price, strike, sigma, risk_free, start_date, end_date
+    if type_choice=='Американский':
+        return html.H1(children="Сосу")
     if all(inp is not None for inp in check_val):
         calculator = Option(price, strike, sigma, datetime.datetime.strptime(start_date, '%Y-%m-%d').strftime('%d/%m/%Y'),
                             datetime.datetime.strptime(end_date, '%Y-%m-%d').strftime('%d/%m/%Y'), risk_free)
