@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-import plotly.express as px
 
 from scipy.stats import norm
 from math import ceil
@@ -33,7 +32,7 @@ class Option():
     
 
     
-    def grow_tree(self, n_steps = None):
+    def grow_tree(self, call, n_steps = None):
         
         """"
         
@@ -67,7 +66,7 @@ class Option():
 
         self.tree = pd.DataFrame(tree)
 
-        price_diff = self.tree - self.strike if self.__call == True else self.strike - self.tree
+        price_diff = self.tree - self.strike if call == True else self.strike - self.tree
         price_diff = np.where(price_diff > 0, price_diff, 0)
         
         ###########  Опционное дерево ############
@@ -90,8 +89,8 @@ class Option():
         last_col.columns = range(len(last_col))
         self.tree_opt = last_col
         
-        self.pretty_tree = self.prettify(self.tree)
-        self.pretty_opt = self.prettify(self.tree_opt)
+        self.pretty_tree = self.prettify(self.tree[self.tree.columns].round(3))
+        self.pretty_opt = self.prettify(self.tree_opt[self.tree.columns].round(3))
         
         return self.pretty_tree, self.pretty_opt
     
@@ -209,32 +208,3 @@ class Option():
                                            self.get_rho()] 
         
         return self.greeks_df
-
-
-def get_board(asset):
-    cols = ['Тикер', 'BOARDID (string:12)', 'Страйк', 'Теор. Цена', 'IV, %', 'Посл. Цена', 'Bid', 'Offer', 'VOLTODAY (int64)', 'OPENPOSITION (double)']
-    sequence = ['Тикер', 'Теор. Цена', 'Посл. Цена', 'Bid', 'Offer', 'Страйк', 'IV, %']
-    
-    url = f'https://iss.moex.com/iss/statistics/engines/futures/markets/options/assets/{asset}/optionboard.html'
-
-    call, put, tmp = pd.read_html(url)
-    call.columns, put.columns = cols, cols
-    
-    ### Данные для заполнения ###
-    
-    centr_strike, price = tmp['CENTRALSTRIKE (double)'][0], tmp['UNDERLYINGSETTLEPRICE (double)'][0]
-    
-    ### Доска опционов ###
-    
-    tab = pd.concat([call[sequence], put[sequence].iloc[:, ::-1].iloc[:, 2:]], axis=1).fillna(' ')
-    volatility = tab[tab['Страйк']==centr_strike]['IV, %'].values[0]
-    
-    ### График ###
-    
-    plot = px.line(tab, 
-                   x = 'Страйк', 
-                   y = 'IV, %',
-                   labels={'Страйк':'Цена Базового Актива', 'IV, %':'Волатильность, %'},
-                   width=600, height=400)
-    
-    return tab, [centr_strike, price, volatility], plot
