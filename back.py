@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import plotly.express as px
 
 from scipy.stats import norm
 from math import ceil
@@ -211,28 +212,31 @@ class Option():
 
 def get_board(asset):
     cols = ['Тикер', 'BOARDID (string:12)', 'Страйк', 'Теор. Цена', 'IV, %', 'Посл. Цена', 'Bid', 'Offer', 'VOLTODAY (int64)', 'OPENPOSITION (double)']
-    sequence = ['Тикер', 'Теор. Цена', 'Посл. Цена', 'Bid', 'Offer', 'Страйк', 'IV, %']
+    c_sequence = ['Тикер', 'Теор. Цена', 'Посл. Цена', 'Bid', 'Offer', 'Страйк']
+    p_sequence = ['IV, %', 'Offer', 'Bid', 'Посл. Цена', 'Теор. Цена', 'Тикер']
     
     url = f'https://iss.moex.com/iss/statistics/engines/futures/markets/options/assets/{asset}/optionboard.html'
 
     call, put, tmp = pd.read_html(url)
     call.columns, put.columns = cols, cols
-    
+
+    ### График ###
+
+    plot = px.line(call,
+                   x='Страйк',
+                   y='IV, %',
+                   labels={'Страйк': 'Цена Базового Актива', 'IV, %': 'Волатильность, %'},
+                   width=600, height=400)
+
     ### Данные для заполнения ###
     
     centr_strike, price = tmp['CENTRALSTRIKE (double)'][0], tmp['UNDERLYINGSETTLEPRICE (double)'][0]
     
     ### Доска опционов ###
-    
-    tab = pd.concat([call[sequence], put[sequence].iloc[:, ::-1].iloc[:, 2:]], axis=1).fillna(' ')
-    volatility = tab[tab['Страйк']==centr_strike]['IV, %'].values[0]
-    
-    ### График ###
-    
-    plot = px.line(tab, 
-                   x = 'Страйк', 
-                   y = 'IV, %',
-                   labels={'Страйк':'Цена Базового Актива', 'IV, %':'Волатильность, %'},
-                   width=600, height=400)
-    
-    return tab, [centr_strike, price, volatility], plot
+
+    volatility = call[call['Страйк'] == centr_strike]['IV, %'].values[0]
+    call = call[c_sequence].fillna(' ')
+    put = put[p_sequence].fillna(' ')
+
+
+    return call, put, [price, centr_strike, volatility], plot
