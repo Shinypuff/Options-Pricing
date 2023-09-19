@@ -208,3 +208,31 @@ class Option():
                                            self.get_rho()] 
         
         return self.greeks_df
+
+def get_board(asset):
+    cols = ['Тикер', 'BOARDID (string:12)', 'Страйк', 'Теор. Цена', 'IV, %', 'Посл. Цена', 'Bid', 'Offer', 'VOLTODAY (int64)', 'OPENPOSITION (double)']
+    sequence = ['Тикер', 'Теор. Цена', 'Посл. Цена', 'Bid', 'Offer', 'Страйк', 'IV, %']
+    
+    url = f'https://iss.moex.com/iss/statistics/engines/futures/markets/options/assets/{asset}/optionboard.html'
+
+    call, put, tmp = pd.read_html(url)
+    call.columns, put.columns = cols, cols
+    
+    ### Данные для заполнения ###
+    
+    centr_strike, price = tmp['CENTRALSTRIKE (double)'][0], tmp['UNDERLYINGSETTLEPRICE (double)'][0]
+    
+    ### Доска опционов ###
+    
+    tab = pd.concat([call[sequence], put[sequence].iloc[:, ::-1].iloc[:, 2:]], axis=1).fillna(' ')
+    volatility = tab[tab['Страйк']==centr_strike]['IV, %'].values[0]
+    
+    ### График ###
+    
+    plot = px.line(tab, 
+                   x = 'Страйк', 
+                   y = 'IV, %',
+                   labels={'Страйк':'Цена Базового Актива', 'IV, %':'Волатильность, %'},
+                   width=600, height=400)
+    
+    return tab, [centr_strike, price, volatility], plot
