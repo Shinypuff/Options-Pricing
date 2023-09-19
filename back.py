@@ -223,11 +223,11 @@ def get_board(asset):
     ### Данные для заполнения ###
     
     centr_strike, price = tmp['CENTRALSTRIKE (double)'][0], tmp['UNDERLYINGSETTLEPRICE (double)'][0]
-    volatility = tab[tab['Страйк']==centr_strike]['IV, %'].values[0]
     
     ### Доска опционов ###
     
     tab = pd.concat([call[sequence], put[sequence].iloc[:, ::-1].iloc[:, 2:]], axis=1).fillna(' ')
+    volatility = tab[tab['Страйк']==centr_strike]['IV, %'].values[0]
     
     ### График ###
     
