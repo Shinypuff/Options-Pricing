@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import plotly.express as px
 
 from scipy.stats import norm
 from math import ceil
@@ -208,3 +209,25 @@ class Option():
                                            self.get_rho()] 
         
         return self.greeks_df
+
+
+def get_board(asset):
+    cols = ['Тикер', 'Страйк', 'Теор. Цена', 'IV, %', 'Посл. Цена', 'Bid', 'Offer']
+    sequence = ['Тикер', 'Теор. Цена', 'Посл. Цена', 'Bid', 'Offer', 'Страйк', 'IV, %']
+    
+    url = f'https://iss.moex.com/iss/statistics/engines/futures/markets/options/assets/{asset}/optionboard.html'
+
+    call, put, central = pd.read_html(url)
+    
+    call = call.drop(['BOARDID (string:12)', 'OPENPOSITION (double)', 'VOLTODAY (int64)'], axis=1)
+    put = put.drop(['BOARDID (string:12)', 'OPENPOSITION (double)', 'VOLTODAY (int64)'], axis=1)
+    
+    call.columns, put.columns = cols, cols
+    
+    res = pd.concat([call[sequence], put[sequence].iloc[:, ::-1].iloc[:, 2:]], axis=1).fillna(' ')
+    
+    plot = px.line(res, 
+                   x = 'Страйк', 
+                   y = 'IV, %',
+                   labels={'Страйк':'Цена Базового Актива', 'IV, %':'Волатильность, %'},
+                   width=600, height=400)
