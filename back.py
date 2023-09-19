@@ -218,14 +218,15 @@ def get_board(asset):
     url = f'https://iss.moex.com/iss/statistics/engines/futures/markets/options/assets/{asset}/optionboard.html'
 
     call, put, tmp = pd.read_html(url)
+    call.columns, put.columns = cols, cols
     
     ### Данные для заполнения ###
     
     centr_strike, price = tmp['CENTRALSTRIKE (double)'][0], tmp['UNDERLYINGSETTLEPRICE (double)'][0]
+    volatility = tab[tab['Страйк']==centr_strike]['IV, %'].values[0]
     
     ### Доска опционов ###
     
-    call.columns, put.columns = cols, cols
     tab = pd.concat([call[sequence], put[sequence].iloc[:, ::-1].iloc[:, 2:]], axis=1).fillna(' ')
     
     ### График ###
@@ -235,8 +236,5 @@ def get_board(asset):
                    y = 'IV, %',
                    labels={'Страйк':'Цена Базового Актива', 'IV, %':'Волатильность, %'},
                    width=600, height=400)
-
-    
-    volatility = tab[tab['Страйк']==centr_strike]['IV, %'].values[0]
     
     return tab, [centr_strike, price, volatility], plot
