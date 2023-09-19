@@ -3,7 +3,7 @@ from dash import Input, Output, dash_table
 from dash import dcc
 from dash import html
 from datetime import date
-from OptionClass import Option
+from back import Option
 import numpy as np
 import pandas as pd
 import datetime
@@ -23,7 +23,8 @@ app.layout = html.Div(id="page", children=(html.Div(id="input_cells", children=(
                                 html.Div([dcc.Input(id='risk_free_field', value=10, type='number', placeholder='Безрисковая ставка, %', style= {"width": "308px","marginTop" : "10px"})]),
                                 html.Div([dcc.DatePickerRange(id='start_date_field', clearable=True, display_format='D.M.Y',start_date=date(2024,12,12), end_date=date(2024, 12, 12), style= {"width": "500px","marginTop" : "10px"})]),
                                 html.Div([dcc.Input(id='number_of_steps', type='text', placeholder='Количество шагов дерева', style= {"width": "200px","marginTop" : "10px"})])), style={'display':'inline-block'}),
-                      html.Div(id="calculator_div", children=(html.Div(id='results', children=(html.Div(id='put_part', children=(html.H1(id='calculated', children='Результаты'), html.Div(id='table_update', children=dash_table.DataTable(blank.to_dict('records'), [{"name": i, "id": i} for i in blank.columns], id='greeks'))), style={'display':'inline-block'})), style={'display' : 'flex'})),
+                      
+                      html.Div(id="calculator_div", children=(html.Div(id='results', children=(html.Div(id='put_part', children=(html.H1(id='calculated', children='Результаты'), html.Div(id='table_update', children=dash_table.DataTable(blank.to_dict('records'), [{"name": i, "id": i} for i in blank.columns], id='greeks', style_header={'backgroundColor': 'red','fontWeight': 'bold'}, style_as_list_view=True))), style={'display':'inline-block'})), style={'display' : 'flex'})),
                                style={'display':'inline-block', 'width':'19%'})), style={'display':'flex'})
 
 
@@ -51,13 +52,15 @@ def table(price, strike, sigma,risk_free, start_date, end_date):
         calculator = Option(price, strike, sigma, datetime.datetime.strptime(start_date, '%Y-%m-%d').strftime('%d/%m/%Y'),
                             datetime.datetime.strptime(end_date, '%Y-%m-%d').strftime('%d/%m/%Y'), risk_free)
         df = calculator.full_calc()
-        return dash_table.DataTable(df.to_dict('records'), [{"name": i, "id": i} for i in df.columns], id='greeks', style_cell_conditional=[{'if': {'column_id' : ' '}, 'minWidth': '135px', 'width': '135px', 'maxWidth': '135px',}, {'if': {'column_id' : 'Колл'}, 'width': '80px'}, {'if': {'column_id' : 'Пут'}, 'width': '80px'}])
+        return dash_table.DataTable(df.to_dict('records'), [{"name": i, "id": i} for i in df.columns], id='greeks', style_header={'backgroundColor': 'grey','fontWeight': 'bold', 'textAlign':'center'}, style_cell_conditional=[{'if': {'column_id' : ' '}, 'minWidth': '135px', 'width': '135px', 'maxWidth': '135px',}, {'if': {'column_id' : 'Колл'}, 'width': '80px'}, {'if': {'column_id' : 'Пут'}, 'width': '80px'}])
     else:
         return dash_table.DataTable(blank.to_dict('records'), [{"name": i, "id": i} for i in blank.columns], id='greeks',
                                     style_cell_conditional=[
                                         {'if': {'column_id': ' '}, 'minWidth': '135px', 'width': '135px',
-                                         'maxWidth': '135px', }, {'if': {'column_id': 'Колл'}, 'width': '80px'},
-                                        {'if': {'column_id': 'Пут'}, 'width': '80px'}])
+                                         'maxWidth': '135px'}, 
+                                        {'if': {'column_id': 'Колл'}, 'width': '80px'},
+                                        {'if': {'column_id': 'Пут'}, 'width': '80px'}],
+                                        style_header={'backgroundColor': 'grey','fontWeight': 'bold', 'textAlign':'center'})
 
 
 
