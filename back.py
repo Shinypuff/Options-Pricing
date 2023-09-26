@@ -238,5 +238,7 @@ def get_board(asset):
     call = call[c_sequence].fillna(' ')
     put = put[p_sequence].fillna(' ')
 
+    ind = call[call['Страйк']==centr_strike].index[0]
 
-    return call, put, [price, centr_strike, volatility, date], plot
+
+    return call, put, [price, centr_strike, volatility, date], plot, ind

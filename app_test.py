@@ -17,6 +17,8 @@ empty_tree = pd.DataFrame(index=range(5), columns= [" "] * 6)
 
 ### styles ###
 table_style = {"borderRadius": "10px", "overflow": "hidden", "border":"2px black solid", 'width':'500px'}
+datatable_style = [{'if':{'column_id': 'Тикер'}, 'fontWeight': 'bold'}, {'background-color':'black', 'color':'white'}]
+columns_to_color = ['Тикер', 'Теор. Цена', 'Посл. Цена', 'Bid', 'Offer']
 
 row_style = {'margin':"10px 0px 0px 10px", 'width':'370'}
 input_style = {"width": "100px", 'marginLeft':'50px'}
@@ -38,6 +40,7 @@ asset_list = html.Div(
 
 type_choice = html.Div([dcc.RadioItems(id='type_choice', 
                                        options=['Европейский', 'Американский', 'Азиатский'],
+                                       value='Европейский',
                                        labelStyle = {'margin':'7px'},
                                        inputStyle = {'margin':'3px'}, 
                                        inline=False)], 
@@ -74,7 +77,8 @@ date_field = html.Div(
                         'marginRight':"25px",
                         'marginLeft':"20px",
                         'marginBottom':"20px",
-                        'marginTop':"20px"})
+                        'marginTop':"20px",
+                        'text-align':"center"})
             )    
                                             
 greeks_table = html.Div(id='table_update', 
@@ -87,7 +91,7 @@ greeks_table = html.Div(id='table_update',
 board = dbc.Stack([
     dbc.Col(dash_table.DataTable(), id='call_board'),
     dbc.Col(dash_table.DataTable(), id='put_board')
-    ], direction='horizontal', style ={'marginTop':'10px'}) #, "border":"2px black solid", "border":"2px black solid"})
+    ], id='stack_table', direction='horizontal', style ={})
 
 figure = html.Div( #html.Div(dcc.Graph(style = {"marginLeft":"10px"}), id='graph'),
                   id="graph_table",
@@ -99,7 +103,7 @@ figure = html.Div( #html.Div(dcc.Graph(style = {"marginLeft":"10px"}), id='graph
 
 ### Layout ###
 
-app.layout = html.Div(id="page",
+default_layout = html.Div(id="page",
                       children=[
                         dbc.Row([
                             html.Div(style = {'width':'470px', "margin":"20px 0px 0px 100px"},
@@ -122,12 +126,16 @@ app.layout = html.Div(id="page",
                             ])
                       ])
 
+app.layout = default_layout
+
 @app.callback([[Output("price_field", "value"), Output("strike_field", "value"), Output("sigma_field", "value"), Output("date_field", "end_date")],
-               Output("graph_table", "children"), Output("call_board", "children"), Output("put_board", "children")],
+               Output("graph_table", "children"), Output("call_board", "children"), Output("put_board", "children"), Output("stack_table", "style")],
               Input("asset_list", "value"))
 def get_attributes(asset):
+    if asset==None:
+        return [100, 100, 10, datetime.datetime.now().strftime('2024-%m-%d')], figure, html.Div(), html.Div(), {}
+    call, put, params, fig, index = get_board(asset)
 
-    call, put, params, fig = get_board(asset)
     fig.update_layout(margin=dict(l=10, r=0, t=20, b=10))
 
     pic = html.Div(dcc.Graph(figure=fig, style = {"marginLeft":"10px"}), 
@@ -136,7 +144,9 @@ def get_attributes(asset):
                             'width':'450px'
                             })
 
-    return params, pic, dash_table.DataTable(call.to_dict('records'), [{"name": i, "id": i} for i in call.columns]), dash_table.DataTable(put.to_dict('records'), [{"name": i, "id": i} for i in put.columns])
+    return params, pic, dash_table.DataTable(call.to_dict('records'), [{"name": i, "id": i} for i in call.columns], style_data_conditional=[datatable_style[0],{'if':{'row_index': index}, 'backgroundColor': 'lightblue'}], style_header=datatable_style[1], style_data={'minWidth':'105px'}), \
+           dash_table.DataTable(put.to_dict('records'), [{"name": i, "id": i} for i in put.columns], style_data_conditional=[datatable_style[0], {'if':{'row_index': index}, 'backgroundColor': 'lightblue'}], style_header=datatable_style[1], style_data={'minWidth':'105px'}),\
+           {'marginTop': '10px', "border": "2px black solid", "border": "2px black solid", 'width': '1300px'}
 
 @app.callback([Output("table_update", "children")],
               [Input("price_field", "value"), Input("strike_field", "value"),
@@ -152,11 +162,12 @@ def table(price, strike, sigma,risk_free, start_date, end_date, type_choice):
 
         df = calculator.full_calc()
         output = [dash_table.DataTable(df.to_dict('records'), [{"name": i, "id": i} for i in df.columns], 
-                                       id='greeks', style_header={'backgroundColor': 'grey','fontWeight': 'bold', 'textAlign':'center'}, 
+                                       id='greeks', style_header={'backgroundColor': 'black','fontWeight': 'bold', 'textAlign':'center', 'color':'white', 'border':'none', 'border-color':'black'},
                                        style_cell_conditional=[{'if': {'column_id' : ' '}, 'minWidth': '80px', 'width': '80px', 'maxWidth': '80px',}, 
                                                                {'if': {'column_id' : 'Колл'}, 'width': '60px'}, 
                                                                {'if': {'column_id' : 'Пут'}, 'width': '60px'}], 
-                                        style_table=table_style)]
+                                        style_table=table_style,
+                                        style_data_conditional=[{'if':{'row_index': 0}, 'backgroundColor': 'lightblue'}])]
         
         if type_choice == 'Американский':
             output[0] = html.H1(children="Нельзя")
@@ -170,7 +181,7 @@ def table(price, strike, sigma,risk_free, start_date, end_date, type_choice):
                                         {'if': {'column_id': ' '}, 'minWidth': '80px', 'width': '80px', 'maxWidth': '80px'}, 
                                         {'if': {'column_id': 'Колл'}, 'width': '60px'},
                                         {'if': {'column_id': 'Пут'}, 'width': '60px'}],
-                                        style_header={'backgroundColor': 'grey','fontWeight': 'bold', 'textAlign':'center'}, style_table = table_style), dash_table.DataTable(empty_tree.to_dict('records'), [{"name": i, "id": i} for i in empty_tree.columns]), dash_table.DataTable(empty_tree.to_dict('records'), [{"name": i, "id": i} for i in empty_tree.columns]),
+                                        style_header={'backgroundColor': 'black','fontWeight': 'bold', 'textAlign':'center', 'color':'white', 'border':'none', 'border-color':'black'}, style_table = table_style), dash_table.DataTable(empty_tree.to_dict('records'), [{"name": i, "id": i} for i in empty_tree.columns]), dash_table.DataTable(empty_tree.to_dict('records'), [{"name": i, "id": i} for i in empty_tree.columns]),
                                         dash_table.DataTable(empty_tree.to_dict('records'), [{"name": i, "id": i} for i in empty_tree.columns]),dash_table.DataTable(empty_tree.to_dict('records'), [{"name": i, "id": i} for i in empty_tree.columns])]
 
 
