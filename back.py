@@ -10,7 +10,7 @@ warnings.filterwarnings('ignore')
 
 
 class Option():
-    def __init__(self, price, strike, sigma , start, end, riskfree, EU = True, divs = True, n=10):
+    def __init__(self, price, strike, sigma , start, end, riskfree, EU = True, divs = True, n=3):
         
         self.asset_price = price
         
@@ -226,11 +226,11 @@ def get_board(asset):
                    x='Страйк',
                    y='IV, %',
                    labels={'Страйк': 'Цена Базового Актива', 'IV, %': 'Волатильность, %'},
-                   width=600, height=400)
+                   width=400, height=300)
 
     ### Данные для заполнения ###
     
-    centr_strike, price = tmp['CENTRALSTRIKE (double)'][0], tmp['UNDERLYINGSETTLEPRICE (double)'][0]
+    centr_strike, price, date = tmp['CENTRALSTRIKE (double)'][0], tmp['UNDERLYINGSETTLEPRICE (double)'][0], tmp['LASTDELDATE (date:10)'][0]
     
     ### Доска опционов ###
 
@@ -239,4 +239,4 @@ def get_board(asset):
     put = put[p_sequence].fillna(' ')
 
 
-    return call, put, [price, centr_strike, volatility], plot
+    return call, put, [price, centr_strike, volatility, date], plot
