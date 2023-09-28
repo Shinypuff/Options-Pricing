@@ -10,7 +10,7 @@ warnings.filterwarnings('ignore')
 
 
 class Option():
-    def __init__(self, price, strike, sigma , start, end, riskfree, EU = True, divs = True, n=3):
+    def __init__(self, price, strike, sigma , start, end, riskfree, EU = True, divs = True):
         
         self.asset_price = price
         
@@ -20,8 +20,7 @@ class Option():
         self.riskfree = riskfree/100
         
         self.EU = EU
-        
-        self.__n = n 
+
         
         self.__divs = divs 
         
@@ -29,11 +28,9 @@ class Option():
         self.end = pd.to_datetime(end, dayfirst=True)
         self.days = (self.end - self.start).days
         self.T = self.days/365
-        self.dt = self.T/n
-    
 
     
-    def grow_tree(self, call, n_steps = None):
+    def grow_tree(self, call):
         
         """"
         
@@ -41,10 +38,9 @@ class Option():
         n_steps: number of steps for a tree
         opt_price: if False, returns tree only for the asset price; if True returns asset price tree AND option price tree
         
-        """   
-        if n_steps == None:
-            n_steps = self.__n
-        
+        """
+        n_steps = self.days
+        self.dt = self.T/n_steps
         self.up = np.exp(self.sigma*np.sqrt(self.dt))
         self.down = 1/self.up 
         
@@ -92,8 +88,14 @@ class Option():
         
         self.pretty_tree = self.prettify(self.tree[self.tree.columns].round(3))
         self.pretty_opt = self.prettify(self.tree_opt[self.tree.columns].round(3))
-        
-        return self.pretty_tree, self.pretty_opt
+
+        self.pretty_tree.drop(0, inplace=True)
+        self.pretty_tree.columns = [str(i) for i in range(self.pretty_tree.shape[1])]
+
+        self.pretty_opt.drop(0, inplace=True)
+        self.pretty_opt.columns = [str(i) for i in range(self.pretty_opt.shape[1])]
+
+        return self.pretty_opt
     
     
     def prettify(self, tree):
@@ -141,7 +143,7 @@ class Option():
     
     
     
-    def BSM(self, precise = False):
+    def BSM(self):
         
         """"
         
@@ -154,7 +156,7 @@ class Option():
         if self.EU == False:
             raise Exception('American options cannot be evaluated using Black-Scholes model')
         
-        dt_precise = 0 if precise != False else self.dt
+        dt_precise = 0
         
         self.d1 = (np.log(self.asset_price/self.strike) + (self.riskfree + self.sigma**2/2)*(self.T - dt_precise))/(self.sigma*np.sqrt(self.T - dt_precise))
         
@@ -201,7 +203,7 @@ class Option():
         self.greeks_df = pd.DataFrame(columns = [' ', 'Колл', 'Пут'])
         
         self.greeks_df[' '] = ['Стоимость опциона', 'Дельта', 'Гамма', 'Вега', 'Тета', 'Ро']
-        self.greeks_df[['Колл', 'Пут']] = [self.BSM(True),
+        self.greeks_df[['Колл', 'Пут']] = [self.BSM(),
                                            self.get_delta(), 
                                            self.get_gamma(), 
                                            self.get_vega(), 
