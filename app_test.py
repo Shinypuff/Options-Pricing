@@ -101,7 +101,7 @@ date_field = html.Div(
             )    
                                             
 greeks_table = html.Div(id='table_update', 
-                        children=blank_table)
+                        children=[html.H2("Модель Блэка-Шоулза", style={'textAlign':'center'}), blank_table])
 
 board = dbc.Stack([
     dbc.Col(dash_table.DataTable(), id='call_board'),
@@ -109,10 +109,10 @@ board = dbc.Stack([
     ], id='stack_table', direction='horizontal', style ={})
 
 trees = dbc.Stack([
-    dbc.Col(dash_table.DataTable(), id='asset_tree'),
-    dbc.Col(dash_table.DataTable(), id='call_tree'),
-    dbc.Col(dash_table.DataTable(), id='put_tree')
-    ], id='stack_tree', direction='horizontal', style ={}, gap=3)
+    dbc.Col([dash_table.DataTable()],),
+    dbc.Col([dash_table.DataTable()], id='call_tree'),
+    dbc.Col([dash_table.DataTable()], id='put_tree')
+    ], id='stack_tree', direction='horizontal', style ={"marginTop":"34px"}, gap=3)
 
 greeks_trees = dbc.Stack([greeks_table, trees], direction="horizontal", gap=3)
 
@@ -124,6 +124,12 @@ figure = html.Div( #html.Div(dcc.Graph(style = {"marginLeft":"10px"}), id='graph
                             "border-radius":"10px"},
                 )
 
+button = html.H1("СКАЧАТЬ",style = {'width':'50px',
+                            'height':'30px',
+                            "marginTop":"30px",
+                            "border-radius":"10px",
+                           'backgroundColor':'lightblue'})
+
 ### Layout ###
 
 default_layout = html.Div(id="page",
@@ -131,7 +137,7 @@ default_layout = html.Div(id="page",
                         dbc.Row([
                             html.Div(style = {'width':'470px', "margin":"20px 0px 0px 100px"},
                                     children = [
-                                        html.Div(html.H1(id='text', children = "Входные данные", style = {'text-align':'center', "marginBottom":"20px"})),
+                                        html.Div(html.H2(id='text', children = "Входные данные", style = {'text-align':'center', "marginBottom":"20px"})),
                                         
                                         html.Div(style={'width':'450px',
                                                         'height':'400px', 
@@ -139,12 +145,12 @@ default_layout = html.Div(id="page",
                                                         "marginTop":"10px",
                                                         "border-radius":"10px"}, 
                                                 
-                                                children =[asset_list, type_choice, price_field, strike_field, sigma_field, risk_free_field, date_field, figure])]),
+                                                children =[asset_list, type_choice, price_field, strike_field, sigma_field, risk_free_field, date_field, figure, button])]),
                                 
                             html.Div(id="calculator_div",
                                     style = {'width':'370px', 
                                     "marginLeft":"10px", 
-                                    "marginTop":"87px"}, 
+                                    "marginTop":"32px"},
                                     children=[greeks_trees, board]),
                             ])
                       ])
@@ -186,13 +192,24 @@ def get_attributes(asset):
                Input("date_field", 'start_date'), Input("date_field", 'end_date'),
                Input("type_choice", "value")])
 def table(price, strike, sigma,risk_free, start_date, end_date, type_choice):
-
+    style = 0 if (type_choice=="Американский") else 1
     check_val = price, strike, sigma, risk_free, start_date, end_date
     if all(inp is not None for inp in check_val):
         calculator = Option(price, strike, sigma, datetime.datetime.strptime(start_date, '%Y-%m-%d').strftime('%d/%m/%Y'),
-                            datetime.datetime.strptime(end_date, '%Y-%m-%d').strftime('%d/%m/%Y'), risk_free)
+                            datetime.datetime.strptime(end_date, '%Y-%m-%d').strftime('%d/%m/%Y'), risk_free, style)
 
-        df = calculator.full_calc()
+
+        df = dash_table.DataTable(calculator.full_calc().to_dict('records'), [{"name": i, "id": i} for i in calculator.full_calc().columns],
+                                       id='greeks', style_header={'backgroundColor': 'black','fontWeight': 'bold', 'textAlign':'center', 'color':'white', 'border':'none', 'border-color':'black'},
+                                       style_cell_conditional=[{'if': {'column_id' : ' '}, 'minWidth': '80px', 'width': '80px', 'maxWidth': '80px',},
+                                                               {'if': {'column_id' : 'Колл'}, 'width': '60px'},
+                                                               {'if': {'column_id' : 'Пут'}, 'width': '60px'}],
+                                        style_table=table_style,
+                                        style_data_conditional=[{'if':{'row_index': 0}, 'backgroundColor': 'lightblue'},
+                                                                {"if": {
+                                                                "state": "selected"},
+                                                                "backgroundColor": "#dbdbdb",
+                                                                "border": "#454343 !important"}])  if (type_choice=="Европейский") else blank_table
 
         tree_opt_call = calculator.grow_tree(True)
         tree_opt_call_short = tree_opt_call.iloc[calculator.days-2:calculator.days+3,:3]
@@ -201,34 +218,20 @@ def table(price, strike, sigma,risk_free, start_date, end_date, type_choice):
         tree_asset = calculator.pretty_tree
         tree_asset_short = tree_asset.iloc[calculator.days-2:calculator.days+3,:3]
 
-        output = [dash_table.DataTable(df.to_dict('records'), [{"name": i, "id": i} for i in df.columns], 
-                                       id='greeks', style_header={'backgroundColor': 'black','fontWeight': 'bold', 'textAlign':'center', 'color':'white', 'border':'none', 'border-color':'black'},
-                                       style_cell_conditional=[{'if': {'column_id' : ' '}, 'minWidth': '80px', 'width': '80px', 'maxWidth': '80px',},
-                                                               {'if': {'column_id' : 'Колл'}, 'width': '60px'}, 
-                                                               {'if': {'column_id' : 'Пут'}, 'width': '60px'}],
-                                        style_table=table_style,
-                                        style_data_conditional=[{'if':{'row_index': 0}, 'backgroundColor': 'lightblue'},
-                                                                {"if": {
-                                                                "state": "selected"},
-                                                                "backgroundColor": "#dbdbdb",
-                                                                "border": "#454343 !important"}]),
-                  [dash_table.DataTable(tree_asset_short.to_dict('records'), [{"name": i, "id": i} for i in tree_asset_short.columns], style_header=tree_style[0],
+        output = [[html.H2("Модель Блэка-Шоулза", style={'textAlign':'center'}), df],
+                  [dbc.Col([html.H3("Цена актива"), dash_table.DataTable(tree_asset_short.to_dict('records'), [{"name": i, "id": i} for i in tree_asset_short.columns], style_header=tree_style[0],
                                        style_data=tree_style[1],
                                         style_table=tree_style[2],
-                                        style_data_conditional=tree_style[3]),
-                  dash_table.DataTable(tree_opt_call_short.to_dict('records'), [{"name": i, "id": i} for i in tree_opt_call_short.columns], style_header=tree_style[0],
+                                        style_data_conditional=tree_style[3])], style = {'textAlign':'center'}),
+                  dbc.Col([html.H3("Цена колл"), dash_table.DataTable(tree_opt_call_short.to_dict('records'), [{"name": i, "id": i} for i in tree_opt_call_short.columns], style_header=tree_style[0],
                                        style_data=tree_style[1],
                                         style_table=tree_style[2],
-                                        style_data_conditional=tree_style[3]),
-                  dash_table.DataTable(tree_opt_put_short.to_dict('records'), [{"name": i, "id": i} for i in tree_opt_put_short.columns], style_header=tree_style[0],
+                                        style_data_conditional=tree_style[3])], style = {'textAlign':'center'}),
+                  dbc.Col([html.H3("Цена пут"), dash_table.DataTable(tree_opt_put_short.to_dict('records'), [{"name": i, "id": i} for i in tree_opt_put_short.columns], style_header=tree_style[0],
                                        style_data=tree_style[1],
                                         style_table=tree_style[2],
-                                        style_data_conditional=tree_style[3])]]
+                                        style_data_conditional=tree_style[3])], style = {'textAlign':'center'})]]
 
-
-        if type_choice == 'Американский' or start_date==end_date:
-            output[0] = blank_table
-            return output
         
         return output
 
