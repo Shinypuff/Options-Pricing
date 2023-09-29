@@ -14,6 +14,11 @@ import dash_bootstrap_components as dbc
 data = [['Стоимость опциона', '', ''], ['Дельта', '', ''], ['Гамма', '', ''], ['Вега', '', ''], ['Тета', '', ''], ['Ро', '', '']]
 blank = pd.DataFrame(data, columns=[' ', "Колл", "Пут"])
 empty_tree = pd.DataFrame(index=range(5), columns= [" "] * 6)
+frame_on_load = []
+
+url = 'https://iss.moex.com/iss/statistics/engines/futures/markets/options/assets.html?limit=100&asset_type=S'
+tickers_table = pd.read_html(url)[0]
+tickers_list = tickers_table['asset (string:36)']
 
 ### styles ###
 table_style = {"borderRadius": "10px", "overflow": "hidden", "border":"2px black solid", 'width':'500px'}
@@ -49,7 +54,7 @@ blank_table = dash_table.DataTable(blank.to_dict('records'), [{"name": i, "id": 
 
 asset_list = html.Div(
     dcc.Dropdown(id='asset_list', 
-    options=["YNDX", "SBER", "RUAL", "GAZP", "AFLT", "ALRS", "AFZ3"],
+    options=tickers_list,
     placeholder='Наименование актива', 
     style = {'marginRight':"25px", 
              'marginLeft':"8px", 
@@ -120,15 +125,12 @@ figure = html.Div( #html.Div(dcc.Graph(style = {"marginLeft":"10px"}), id='graph
                   id="graph_table",
                   style = {'width':'450px',
                             'height':'320', 
-                            "marginTop":"30px",
+                            "marginTop":"10px",
                             "border-radius":"10px"},
                 )
 
-button = html.H1("СКАЧАТЬ",style = {'width':'50px',
-                            'height':'30px',
-                            "marginTop":"30px",
-                            "border-radius":"10px",
-                           'backgroundColor':'lightblue'})
+button = html.Div([html.Button(html.H4("Скачать данные", style={'fontWeight': 'bold'}), id="button_xlsx", style={"borderRadius": "10px", "overflow": "hidden", "border":"2px black solid", "width":"450px", "backgroundColor": "lightblue"}),
+                  dcc.Download(id="download_xlsx")], style={"marginTop" : "20px"})
 
 ### Layout ###
 
@@ -199,7 +201,8 @@ def table(price, strike, sigma,risk_free, start_date, end_date, type_choice):
                             datetime.datetime.strptime(end_date, '%Y-%m-%d').strftime('%d/%m/%Y'), risk_free, style)
 
 
-        df = dash_table.DataTable(calculator.full_calc().to_dict('records'), [{"name": i, "id": i} for i in calculator.full_calc().columns],
+        greeks = calculator.full_calc() if (type_choice=="Европейский") else blank
+        df = dash_table.DataTable(greeks.to_dict('records'), [{"name": i, "id": i} for i in greeks.columns],
                                        id='greeks', style_header={'backgroundColor': 'black','fontWeight': 'bold', 'textAlign':'center', 'color':'white', 'border':'none', 'border-color':'black'},
                                        style_cell_conditional=[{'if': {'column_id' : ' '}, 'minWidth': '80px', 'width': '80px', 'maxWidth': '80px',},
                                                                {'if': {'column_id' : 'Колл'}, 'width': '60px'},
@@ -209,7 +212,7 @@ def table(price, strike, sigma,risk_free, start_date, end_date, type_choice):
                                                                 {"if": {
                                                                 "state": "selected"},
                                                                 "backgroundColor": "#dbdbdb",
-                                                                "border": "#454343 !important"}])  if (type_choice=="Европейский") else blank_table
+                                                                "border": "#454343 !important"}])
 
         tree_opt_call = calculator.grow_tree(True)
         tree_opt_call_short = tree_opt_call.iloc[calculator.days-2:calculator.days+3,:3]
@@ -217,6 +220,7 @@ def table(price, strike, sigma,risk_free, start_date, end_date, type_choice):
         tree_opt_put_short = tree_opt_put.iloc[calculator.days-2:calculator.days+3,:3]
         tree_asset = calculator.pretty_tree
         tree_asset_short = tree_asset.iloc[calculator.days-2:calculator.days+3,:3]
+        globals()["frame_on_load"].extend([greeks, tree_asset, tree_opt_call, tree_opt_put])
 
         output = [[html.H2("Модель Блэка-Шоулза", style={'textAlign':'center'}), df],
                   [dbc.Col([html.H3("Цена актива"), dash_table.DataTable(tree_asset_short.to_dict('records'), [{"name": i, "id": i} for i in tree_asset_short.columns], style_header=tree_style[0],
@@ -239,6 +243,19 @@ def table(price, strike, sigma,risk_free, start_date, end_date, type_choice):
         return [blank_table, dash_table.DataTable(empty_tree.to_dict('records'), [{"name": i, "id": i} for i in empty_tree.columns]), dash_table.DataTable(empty_tree.to_dict('records'), [{"name": i, "id": i} for i in empty_tree.columns]),
                                         dash_table.DataTable(empty_tree.to_dict('records'), [{"name": i, "id": i} for i in empty_tree.columns]),dash_table.DataTable(empty_tree.to_dict('records'), [{"name": i, "id": i} for i in empty_tree.columns])]
 
+
+@app.callback(Output("download_xlsx", "data"),
+              Input("button_xlsx", "n_clicks"),
+              prevent_initial_call=True,
+)
+def on_download(n_clicks):
+    with pd.ExcelWriter("Данные по опциону.xlsx") as writer:
+        frame_on_load[0].to_excel(writer, sheet_name="Модель Блэка-Шоулза", index=False)
+        frame_on_load[1].to_excel(writer, sheet_name="Дерево актива", index=False)
+        frame_on_load[2].to_excel(writer, sheet_name="Дерево колл", index=False)
+        frame_on_load[3].to_excel(writer, sheet_name="Дерево пут", index=False)
+
+    return dcc.send_file("Данные по опциону.xlsx")
 
 if __name__ == '__main__':
     app.run(debug=True)
