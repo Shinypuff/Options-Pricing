@@ -1,16 +1,22 @@
 import numpy as np
 import pandas as pd
+from scipy.stats import norm
 
 class MonteCarlo():
-    def __init__(self, S, K, r, sigma, steps=252, T=5, q=0, d=20):
+    def __init__(self, S, K, r, sigma, start, end, steps=252, q=0, d=20):
         self.S = S
         self.K = K
-        self.r = r
-        self.sigma = sigma
-        self.T = T
+        self.r = r/100
+        self.sigma = sigma/100
+
+        self.start = pd.to_datetime(start, dayfirst=True)
+        self.end = pd.to_datetime(end, dayfirst=True)
+        self.days = (self.end - self.start).days
+        self.T = self.days/365
+
         self.steps = steps
         self.q = q
-        self.d = round(d)
+        self.d = self.days
 
     def sims(self, sims_num=10**4):
         n_sims = sims_num
@@ -32,13 +38,19 @@ class MonteCarlo():
     def price(self):
         means = self.simulation[-self.d:, :].mean(axis=0)
 
-        call_price = (np.where(means-self.K>0, means-self.K, 0)*np.exp(-self.r*self.T)).mean()
-        put_price =  (np.where(self.K - means>0, self.K - means, 0)*np.exp(-self.r*self.T)).mean()
+        self.call_price = (np.where(means-self.K>0, means-self.K, 0)*np.exp(-self.r*self.T)).mean()
+        self.put_price =  (np.where(self.K - means>0, self.K - means, 0)*np.exp(-self.r*self.T)).mean()
 
-        return call_price, put_price
+#        return call_price, put_price
 
 
-def Hull(S, K, T, std, r=0.085, q=0, to_print=True):
+def Hull(S, K, r, std, start, end, q=0, to_print=True):
+    r /= 100
+    std /=100
+    start = pd.to_datetime(start, dayfirst=True)
+    end = pd.to_datetime(end, dayfirst=True)
+
+    T = (end-start).days/365
     
     m1 = (np.exp((r-q)*T)-1)*S/((r-q)*T)
     m2 = (2*np.exp((2*(r-q)+std**2)*T)*S**2)/((r-q+std**2)*(2*r-2*q+std**2)*T**2) + 2*S**2/((r-q)*T**2)*(1/(2*(r-q)+std**2)-np.exp((r-q)*T)/(r-q+std**2))
@@ -56,3 +68,4 @@ def Hull(S, K, T, std, r=0.085, q=0, to_print=True):
         print('Call: ', call_price, '\n Put: ', put_price)
     
     return call_price, put_price
+
