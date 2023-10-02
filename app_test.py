@@ -10,6 +10,7 @@ from dateutil import relativedelta
 import pandas as pd
 import datetime
 import dash_bootstrap_components as dbc
+from math import floor
 
 data = [['Стоимость опциона', '', ''], ['Дельта', '', ''], ['Гамма', '', ''], ['Вега', '', ''], ['Тета', '', ''], ['Ро', '', '']]
 data_asian = [["Колл", '', ''], ["Пут", '', '']]
@@ -107,12 +108,12 @@ risk_free_field = dbc.Row([
     ], style = row_style)
 
 asian_1_field = dbc.Row([
-    dbc.Col(html.H6('Я китаец')),
+    dbc.Col(html.H6('Кол-во дней усреднения')),
     dbc.Col(dcc.Input(id='avg_periods', value=2, type='number', style=input_style))
     ], style = row_style)
 
 asian_2_field = dbc.Row([
-    dbc.Col(html.H6('Я татарин')),
+    dbc.Col(html.H6('Дивидендная доходность')),
     dbc.Col(dcc.Input(id='div_yield', value=4, type='number', style=input_style))
     ], style = row_style)
 
@@ -196,11 +197,11 @@ default_layout = html.Div(id="page",
                       ], style={'height':'100%', 'width':'100%', 'max-width': '100%'})
 
 app.layout = default_layout
-@app.callback(Output("asian_input_div", "style"), Input("type_choice", "value"))
-def on_asian(type_choice):
+@app.callback(Output("asian_input_div", "style"), Output("avg_periods", "value"), Input("type_choice", "value"), Input("date_field", 'end_date'))
+def on_asian(type_choice, date):
     if type_choice=="Азиатский":
-        return {}
-    return {'display':'none'}
+        return {}, floor((pd.to_datetime(date, dayfirst=True)-pd.to_datetime(datetime.date.today().strftime("%Y-%m-%d"), dayfirst=True)).days*252/365)
+    return {'display':'none'}, floor((pd.to_datetime(date, dayfirst=True)-pd.to_datetime(datetime.date.today().strftime("%Y-%m-%d"), dayfirst=True)).days*252/365)
 
 @app.callback([[Output("price_field", "value"), Output("strike_field", "value"), Output("sigma_field", "value"), Output("date_field", "end_date")],
                Output("graph_table", "children"), Output("call_board", "children"), Output("put_board", "children"), Output("stack_table", "style")],
@@ -239,7 +240,10 @@ def get_attributes(asset, type_choice):
                Input("type_choice", "value"), Input("avg_periods", "value"),
                Input("div_yield", "value")])
 def table(price, strike, sigma,risk_free, start_date, end_date, type_choice, avg_periods, div_yield):
+    check_val_as = price, strike, sigma, risk_free, start_date, end_date, avg_periods, div_yield
     if (type_choice=="Азиатский"):
+        if not all(inp is not None for inp in check_val_as):
+            raise dash.exceptions.PreventUpdate()
         as_calculator = MonteCarlo(price, strike,risk_free, sigma, datetime.datetime.strptime(start_date, '%Y-%m-%d').strftime('%d/%m/%Y'),
                             datetime.datetime.strptime(end_date, '%Y-%m-%d').strftime('%d/%m/%Y'), avg_periods, div_yield)
         as_calculator.sims()
