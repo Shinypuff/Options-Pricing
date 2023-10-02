@@ -3,7 +3,7 @@ import pandas as pd
 from scipy.stats import norm
 
 class MonteCarlo():
-    def __init__(self, S, K, r, sigma, start, end, steps, q, d=20):
+    def __init__(self, S, K, r, sigma, start, end, steps, q, d):
         self.S = S
         self.K = K
         self.r = r/100
@@ -16,7 +16,7 @@ class MonteCarlo():
 
         self.steps = steps
         self.q = q/100
-        self.d = self.days
+        self.d = d
 
     def sims(self, sims_num=10**4):
         n_sims = sims_num
@@ -36,7 +36,7 @@ class MonteCarlo():
         return self.simulation
             
     def price(self):
-        means = self.simulation[-self.d:, :].mean(axis=0)
+        means = self.simulation[self.d-1:, :].mean(axis=0)
 
         self.call_price = (np.where(means-self.K>0, means-self.K, 0)*np.exp(-self.r*self.T)).mean()
         self.put_price =  (np.where(self.K - means>0, self.K - means, 0)*np.exp(-self.r*self.T)).mean()

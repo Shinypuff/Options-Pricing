@@ -108,17 +108,22 @@ risk_free_field = dbc.Row([
     ], style = row_style)
 
 asian_1_field = dbc.Row([
-    dbc.Col(html.H6('Кол-во дней усреднения')),
+    dbc.Col(html.H6('Кол-во точек усреднения')),
     dbc.Col(dcc.Input(id='avg_periods', value=2, type='number', style=input_style))
     ], style = row_style)
 
 asian_2_field = dbc.Row([
-    dbc.Col(html.H6('Дивидендная доходность')),
-    dbc.Col(dcc.Input(id='div_yield', value=4, type='number', style=input_style))
+    dbc.Col(html.H6('Дивидендная доходность, %')),
+    dbc.Col(dcc.Input(id='div_yield', value=0, type='number', style=input_style))
     ], style = row_style)
 
-asian_inputs = html.Div(children=[asian_1_field, asian_2_field], style={'width':'450px',
-                               'height':'95px',
+asian_3_field = dbc.Row([
+    dbc.Col(html.H6('Номер первой точки усреднения')),
+    dbc.Col(dcc.Input(id='first_point', value=1, type='number', style=input_style))
+    ], style = row_style)
+
+asian_inputs = html.Div(children=[asian_1_field, asian_2_field, asian_3_field], style={'width':'450px',
+                               'height':'160px',
                                "border":"2px black solid",
                                "marginTop":"10px",
                                "border-radius":"10px"})
@@ -238,18 +243,19 @@ def get_attributes(asset, type_choice):
                Input("sigma_field", "value"), Input("risk_free_field", "value"),
                Input("date_field", 'start_date'), Input("date_field", 'end_date'),
                Input("type_choice", "value"), Input("avg_periods", "value"),
-               Input("div_yield", "value")])
-def table(price, strike, sigma,risk_free, start_date, end_date, type_choice, avg_periods, div_yield):
-    check_val_as = price, strike, sigma, risk_free, start_date, end_date, avg_periods, div_yield
+               Input("div_yield", "value"), Input("first_point", "value")])
+def table(price, strike, sigma,risk_free, start_date, end_date, type_choice, avg_periods, div_yield, first_point):
+    check_val_as = price, strike, sigma, risk_free, start_date, end_date, avg_periods, div_yield, first_point
     if (type_choice=="Азиатский"):
         if not all(inp is not None for inp in check_val_as):
             raise dash.exceptions.PreventUpdate()
         as_calculator = MonteCarlo(price, strike,risk_free, sigma, datetime.datetime.strptime(start_date, '%Y-%m-%d').strftime('%d/%m/%Y'),
-                            datetime.datetime.strptime(end_date, '%Y-%m-%d').strftime('%d/%m/%Y'), avg_periods, div_yield)
+                            datetime.datetime.strptime(end_date, '%Y-%m-%d').strftime('%d/%m/%Y'), avg_periods, div_yield, first_point)
         as_calculator.sims()
         as_calculator.price()
         hull_price = Hull(price, strike,risk_free, sigma, datetime.datetime.strptime(start_date, '%Y-%m-%d').strftime('%d/%m/%Y'),
-                            datetime.datetime.strptime(end_date, '%Y-%m-%d').strftime('%d/%m/%Y'), div_yield)
+                            datetime.datetime.strptime(end_date, '%Y-%m-%d').strftime('%d/%m/%Y'), div_yield) if first_point==1 else [" ", " "]
+
         out_asian = [["Колл", f'{hull_price[0]}', f'{as_calculator.call_price}'], ["Пут", f'{hull_price[1]}', f'{as_calculator.put_price}']]
         out_asian_table = pd.DataFrame(out_asian, columns=[' ', "Холл", "Монте-Карло"])
         datatable_asian = dash_table.DataTable(out_asian_table.to_dict('records'), [{"name": i, "id": i} for i in out_asian_table.columns],
