@@ -3,7 +3,7 @@ import pandas as pd
 from scipy.stats import norm
 
 class MonteCarlo():
-    def __init__(self, S, K, r, sigma, start, end, steps=252, q=0, d=20):
+    def __init__(self, S, K, r, sigma, start, end, steps, q, d=20):
         self.S = S
         self.K = K
         self.r = r/100
@@ -15,14 +15,14 @@ class MonteCarlo():
         self.T = self.days/365
 
         self.steps = steps
-        self.q = q
+        self.q = q/100
         self.d = self.days
 
     def sims(self, sims_num=10**4):
         n_sims = sims_num
-        total_steps = self.steps*self.T
+        total_steps = self.steps
         total_steps = round(total_steps)
-        dt = 1/self.steps
+        dt = 1/252
 
         mu = (self.r-self.q-0.5*self.sigma**2)*dt
         sigma = self.sigma*np.sqrt(dt)
@@ -44,8 +44,9 @@ class MonteCarlo():
 #        return call_price, put_price
 
 
-def Hull(S, K, r, std, start, end, q=0, to_print=True):
+def Hull(S, K, r, std, start, end, q, to_print=True):
     r /= 100
+    q /= 100
     std /=100
     start = pd.to_datetime(start, dayfirst=True)
     end = pd.to_datetime(end, dayfirst=True)

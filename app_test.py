@@ -43,8 +43,8 @@ app = dash.Dash(__name__, external_stylesheets = [dbc.themes.BOOTSTRAP])
 
 ### Components ###
 
-blank_table_asian = dash_table.DataTable(blank_asian.to_dict('records'), [{"name": i, "id": i} for i in blank_asian.columns],
-                                       id='asians', style_header={'backgroundColor': 'black','fontWeight': 'bold', 'textAlign':'center', 'color':'white', 'border':'none', 'border-color':'black'},
+blank_table_asian = html.Div(children=dash_table.DataTable(blank_asian.to_dict('records'), [{"name": i, "id": i} for i in blank_asian.columns],
+                                       style_header={'backgroundColor': 'black','fontWeight': 'bold', 'textAlign':'center', 'color':'white', 'border':'none', 'border-color':'black'},
                                        style_cell_conditional=[{'if': {'column_id' : ' '},'minWidth':'40px', 'width': '40px','maxWidth': '40px'},
                                                                {'if': {'column_id' : 'Халл'}, 'minWidth':'100px', 'width': '100px','maxWidth': '100px'},
                                                                {'if': {'column_id' : 'Монте-Карло'}, 'minWidth':'100px', 'width': '100px','maxWidth': '100px'}],
@@ -52,7 +52,7 @@ blank_table_asian = dash_table.DataTable(blank_asian.to_dict('records'), [{"name
                                         style_data_conditional=[{"if": {
                                                                 "state": "selected"},
                                                                 "backgroundColor": "#dbdbdb",
-                                                                "border": "#454343 !important"}])
+                                                                "border": "#454343 !important"}]), id='asians')
 
 blank_table = dash_table.DataTable(blank.to_dict('records'), [{"name": i, "id": i} for i in blank.columns],
                                        id='greeks', style_header={'backgroundColor': 'black','fontWeight': 'bold', 'textAlign':'center', 'color':'white', 'border':'none', 'border-color':'black'},
@@ -108,21 +108,24 @@ risk_free_field = dbc.Row([
 
 asian_1_field = dbc.Row([
     dbc.Col(html.H6('Я китаец')),
-    dbc.Col(dcc.Input(id='asian_1', value=2, type='number', style=input_style))
+    dbc.Col(dcc.Input(id='avg_periods', value=2, type='number', style=input_style))
     ], style = row_style)
 
 asian_2_field = dbc.Row([
     dbc.Col(html.H6('Я татарин')),
-    dbc.Col(dcc.Input(id='asian_2', value=4, type='number', style=input_style))
+    dbc.Col(dcc.Input(id='div_yield', value=4, type='number', style=input_style))
     ], style = row_style)
 
-asian_inputs = html.Div(style={'width':'450px',
+asian_inputs = html.Div(children=[asian_1_field, asian_2_field], style={'width':'450px',
                                'height':'95px',
                                "border":"2px black solid",
                                "marginTop":"10px",
-                               "border-radius":"10px"},
-                               id="asian_input_div",
-                               children =[asian_1_field, asian_2_field])
+                               "border-radius":"10px"})
+
+asian_fin = html.Div(id="asian_input_div",
+                               children = [html.Div(children=[html.H2("Границы периода"), asian_inputs]), html.Div(blank_table_asian, id='hull_carlo')])
+
+
 
 date_field = html.Div(
         dcc.DatePickerRange(
@@ -188,11 +191,16 @@ default_layout = html.Div(id="page",
                                     style = {'width':'370px', 
                                     "marginLeft":"10px", 
                                     "marginTop":"32px"},
-                                    children=[greeks_trees, board]),
+                                    children=[asian_fin, greeks_trees, board]),
                             ])
-                      ])
+                      ], style={'height':'100%', 'width':'100%', 'max-width': '100%'})
 
 app.layout = default_layout
+@app.callback(Output("asian_input_div", "style"), Input("type_choice", "value"))
+def on_asian(type_choice):
+    if type_choice=="Азиатский":
+        return {}
+    return {'display':'none'}
 
 @app.callback([[Output("price_field", "value"), Output("strike_field", "value"), Output("sigma_field", "value"), Output("date_field", "end_date")],
                Output("graph_table", "children"), Output("call_board", "children"), Output("put_board", "children"), Output("stack_table", "style")],
@@ -224,19 +232,20 @@ def get_attributes(asset, type_choice):
         call_board, put_board, pic, clear_style = None, None, None, None
     return params, pic, call_board, put_board, clear_style
 
-@app.callback([Output("table_update", "children"), Output("stack_tree", "children")],
+@app.callback([Output("table_update", "children"), Output("stack_tree", "children"), Output("hull_carlo", "children")],
               [Input("price_field", "value"), Input("strike_field", "value"),
                Input("sigma_field", "value"), Input("risk_free_field", "value"),
                Input("date_field", 'start_date'), Input("date_field", 'end_date'),
-               Input("type_choice", "value")])
-def table(price, strike, sigma,risk_free, start_date, end_date, type_choice):
+               Input("type_choice", "value"), Input("avg_periods", "value"),
+               Input("div_yield", "value")])
+def table(price, strike, sigma,risk_free, start_date, end_date, type_choice, avg_periods, div_yield):
     if (type_choice=="Азиатский"):
         as_calculator = MonteCarlo(price, strike,risk_free, sigma, datetime.datetime.strptime(start_date, '%Y-%m-%d').strftime('%d/%m/%Y'),
-                            datetime.datetime.strptime(end_date, '%Y-%m-%d').strftime('%d/%m/%Y'))
+                            datetime.datetime.strptime(end_date, '%Y-%m-%d').strftime('%d/%m/%Y'), avg_periods, div_yield)
         as_calculator.sims()
         as_calculator.price()
         hull_price = Hull(price, strike,risk_free, sigma, datetime.datetime.strptime(start_date, '%Y-%m-%d').strftime('%d/%m/%Y'),
-                            datetime.datetime.strptime(end_date, '%Y-%m-%d').strftime('%d/%m/%Y'))
+                            datetime.datetime.strptime(end_date, '%Y-%m-%d').strftime('%d/%m/%Y'), div_yield)
         out_asian = [["Колл", f'{hull_price[0]}', f'{as_calculator.call_price}'], ["Пут", f'{hull_price[1]}', f'{as_calculator.put_price}']]
         out_asian_table = pd.DataFrame(out_asian, columns=[' ', "Холл", "Монте-Карло"])
         datatable_asian = dash_table.DataTable(out_asian_table.to_dict('records'), [{"name": i, "id": i} for i in out_asian_table.columns],
@@ -250,7 +259,7 @@ def table(price, strike, sigma,risk_free, start_date, end_date, type_choice):
                                                                 "backgroundColor": "#dbdbdb",
                                                                 "border": "#454343 !important"}])
 
-        return [[html.H2("Границы периода"), asian_inputs, datatable_asian], None]
+        return [None, None, datatable_asian]
 
     style = 0 if (type_choice=="Американский") else 1
     check_val = price, strike, sigma, risk_free, start_date, end_date
@@ -296,7 +305,7 @@ def table(price, strike, sigma,risk_free, start_date, end_date, type_choice):
                 dbc.Col([html.H3("Цена пут"), dash_table.DataTable(tree_opt_put_short.to_dict('records'), [{"name": i, "id": i} for i in tree_opt_put_short.columns], style_header=tree_style[0],
                                     style_data=tree_style[1],
                                     style_table=tree_style[2],
-                                    style_data_conditional=tree_style[3])], style = {'textAlign':'center'})]]
+                                    style_data_conditional=tree_style[3])], style = {'textAlign':'center'})], dash_table.DataTable()]
 
         
     return output
