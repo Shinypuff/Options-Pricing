@@ -45,6 +45,8 @@ class MonteCarlo():
 
 
 def Hull(S, K, r, std, start, end, q, to_print=True):
+    if r==q:
+        r+=0.0001
     r /= 100
     q /= 100
     std /=100

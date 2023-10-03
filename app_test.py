@@ -1,5 +1,5 @@
 import dash
-from dash import Input, Output, dash_table
+from dash import Input, Output, dash_table, no_update
 from dash import dcc
 from dash import html
 from back import Option
@@ -18,7 +18,8 @@ blank = pd.DataFrame(data, columns=[' ', "Колл", "Пут"])
 blank_asian = pd.DataFrame(data_asian, columns=[' ', "Халл", "Монте-Карло"])
 empty_tree = pd.DataFrame(index=range(5), columns= [" "] * 6)
 frame_on_load = []
-i = 0
+on_type_check = ""
+on_asset_check = ""
 
 url = 'https://iss.moex.com/iss/statistics/engines/futures/markets/options/assets.html?limit=100&asset_type=S'
 tickers_table = pd.read_html(url)[0]
@@ -103,7 +104,7 @@ sigma_field = dbc.Row([
      ], style = row_style)
 
 risk_free_field = dbc.Row([
-    dbc.Col(html.H6('Безрисоквая ставка, %')),
+    dbc.Col(html.H6('Безрисковая ставка, %')),
     dbc.Col(dcc.Input(id='risk_free_field', value=10, type='number', style=input_style))
     ], style = row_style)
 
@@ -123,7 +124,6 @@ asian_3_field = dbc.Row([
     ], style = row_style)
 
 asian_inputs = html.Div(children=[asian_1_field, asian_2_field, asian_3_field], style={'width':'450px',
-                               'height':'160px',
                                "border":"2px black solid",
                                "marginTop":"10px",
                                "border-radius":"10px"})
@@ -213,7 +213,7 @@ def on_asian(type_choice, date):
               Input("asset_list", "value"), Input("type_choice", "value"))
 def get_attributes(asset, type_choice):
     if asset==None:
-        return [100, 100, 10, (datetime.date.today()+relativedelta.relativedelta(months=1)).strftime('%Y-%m-%d')], figure, html.Div(), html.Div(), {}
+        return [no_update, no_update, no_update, no_update], figure, html.Div(), html.Div(), {}
     call, put, params, fig, index = get_board(asset)
     fig.update_layout(margin=dict(l=10, r=0, t=20, b=10))
 
@@ -236,6 +236,12 @@ def get_attributes(asset, type_choice):
     clear_style = {'marginTop': '10px', "border": "2px black solid", "border": "2px black solid", 'width': '1300px'}
     if (type_choice=="Азиатский"):
         call_board, put_board, pic, clear_style = None, None, None, None
+    if (globals()["on_type_check"]!=type_choice and globals()["on_asset_check"]==asset):
+        globals()["on_type_check"] = type_choice
+        globals()["on_asset_check"] = asset
+        return [no_update, no_update, no_update, no_update], pic, call_board, put_board, clear_style
+    globals()["on_type_check"] = type_choice
+    globals()["on_asset_check"] = asset
     return params, pic, call_board, put_board, clear_style
 
 @app.callback([Output("table_update", "children"), Output("stack_tree", "children"), Output("hull_carlo", "children")],
@@ -245,6 +251,16 @@ def get_attributes(asset, type_choice):
                Input("type_choice", "value"), Input("avg_periods", "value"),
                Input("div_yield", "value"), Input("first_point", "value")])
 def table(price, strike, sigma,risk_free, start_date, end_date, type_choice, avg_periods, div_yield, first_point):
+    def debug_one_day(frame):
+        if frame.shape[0]<=3:
+            frame.loc[-1] = ["", ""]
+            frame.sort_index(inplace=True)
+            frame.loc[4] = ["", ""]
+            frame["2"] = [0, "", 0, "", 0]
+            frame.sort_index(inplace=True)
+            return frame.reset_index(drop=True)
+        else:
+            return frame.iloc[calculator.days-2:calculator.days+3,:3]
     check_val_as = price, strike, sigma, risk_free, start_date, end_date, avg_periods, div_yield, first_point
     if (type_choice=="Азиатский"):
         if not all(inp is not None for inp in check_val_as):
@@ -295,11 +311,12 @@ def table(price, strike, sigma,risk_free, start_date, end_date, type_choice, avg
                                                             "border": "#454343 !important"}])
 
     tree_opt_call = calculator.grow_tree(True)
-    tree_opt_call_short = tree_opt_call.iloc[calculator.days-2:calculator.days+3,:3]
+    tree_opt_call_short = debug_one_day(tree_opt_call)
     tree_opt_put = calculator.grow_tree(False)
-    tree_opt_put_short = tree_opt_put.iloc[calculator.days-2:calculator.days+3,:3]
+    tree_opt_put_short = debug_one_day(tree_opt_put)
     tree_asset = calculator.pretty_tree
-    tree_asset_short = tree_asset.iloc[calculator.days-2:calculator.days+3,:3]
+    tree_asset_short = debug_one_day(tree_asset)
+
     globals()["frame_on_load"] = []
     globals()["frame_on_load"].extend([greeks, tree_asset, tree_opt_call, tree_opt_put])
 
@@ -320,15 +337,9 @@ def table(price, strike, sigma,risk_free, start_date, end_date, type_choice, avg
         
     return output
 
-
-        #return [blank_table, dash_table.DataTable(empty_tree.to_dict('records'), [{"name": i, "id": i} for i in empty_tree.columns]), dash_table.DataTable(empty_tree.to_dict('records'), [{"name": i, "id": i} for i in empty_tree.columns]),
-                                        #dash_table.DataTable(empty_tree.to_dict('records'), [{"name": i, "id": i} for i in empty_tree.columns]),dash_table.DataTable(empty_tree.to_dict('records'), [{"name": i, "id": i} for i in empty_tree.columns])]
-
-
 @app.callback(Output("download_xlsx", "data"),
               Input("button_xlsx", "n_clicks"),
-              prevent_initial_call=True,
-)
+              prevent_initial_call=True,)
 def on_download(n_clicks):
     with pd.ExcelWriter("Данные по опциону.xlsx") as writer:
         globals()["frame_on_load"][0].to_excel(writer, sheet_name="Модель Блэка-Шоулза", index=False)
@@ -340,3 +351,4 @@ def on_download(n_clicks):
 
 if __name__ == '__main__':
     app.run(debug=True)
+
