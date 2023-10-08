@@ -13,7 +13,7 @@ def handle_asset_type(asset_type):
         return tickers_list
     elif asset_type=="Фьючерс":
         return futures_filter["asset"].unique()
-    return ["CNY/RUB", "EUR/RUB", "USD/RUB"]
+    return {"CNYRUB_TOM":"CNY/RUB", "EUR_RUB__TOM":"EUR/RUB", "USD000UTSTOM":"USD/RUB"}
 
 
 @app.callback(Output("futures_list", "options"), Input("asset_list", "value"))
@@ -24,7 +24,7 @@ def handle_futures_options(asset):
 @app.callback(Output("asset_list", "style"), Output("asset_list", "value"), Input("asset_type", "value"))
 def handle_asset_list(asset_type):
     if asset_type != None:
-        return visible_dropdowns, no_update
+        return visible_dropdowns, None
     return hidden_dropdowns, None
 
 
@@ -63,13 +63,7 @@ def get_attributes(asset, type_choice, futures, asset_type):
         return [no_update, no_update, no_update, no_update], figure, html.Div(), html.Div(), {}
     if futures == None and asset_type == "Фьючерс":
         raise dash.exceptions.PreventUpdate
-    if asset_type == "Валюта":
-        if asset == "EUR/RUB":
-            asset = "EUR_RUB__TOM"
-        elif asset == "CNY/RUB":
-            asset = "CNYRUB_TOM"
-        elif asset == "USD/RUB":
-            asset = "USD000UTSTOM"
+    print(asset, futures)
     call, put, params, fig, index = get_board(asset) if futures == None and asset_type != "Фьючерс" else get_board(futures)
     fig.update_layout(margin=dict(l=10, r=0, t=20, b=10))
 
