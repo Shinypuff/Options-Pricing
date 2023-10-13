@@ -1,19 +1,21 @@
 import dash.exceptions
-
 from back import Option, get_board
 from Asian import MonteCarlo, Hull
 from math import floor
 from layout import *
 
 
+@app.callback(Output("averaging_field", "end_date"), Output("averaging_field", "start_date"), Input("date_field", "end_date"), Input("date_field", "start_date"))
+def handle_averaging_period(initial_date_end, initial_date_start):
+    return initial_date_end, initial_date_start
 
-@app.callback(Output("asset_list", "options"), Input("asset_type", "value"))
+@app.callback(Output("asset_list", "options"), Output("risk_free_field", "value"), Input("asset_type", "value"))
 def handle_asset_type(asset_type):
     if asset_type=="Акция":
-        return tickers_list
+        return tickers_list, 10
     elif asset_type=="Фьючерс":
-        return futures_filter["asset"].unique()
-    return {"CNYRUB_TOM":"CNY/RUB", "EUR_RUB__TOM":"EUR/RUB", "USD000UTSTOM":"USD/RUB"}
+        return futures_filter["asset"].unique(), 0
+    return {"CNYRUB_TOM":"CNY/RUB", "EUR_RUB__TOM":"EUR/RUB", "USD000UTSTOM":"USD/RUB"}, 10
 
 
 @app.callback(Output("futures_list", "options"), Input("asset_list", "value"))
@@ -102,22 +104,24 @@ def get_attributes(asset, type_choice, futures, asset_type):
               [Input("price_field", "value"), Input("strike_field", "value"),
                Input("sigma_field", "value"), Input("risk_free_field", "value"),
                Input("date_field", 'start_date'), Input("date_field", 'end_date'),
-               Input("avg_periods", "value"), Input("div_yield", "value"),
-               Input("first_point", "value")])
-def hull_carlo(price, strike, sigma,risk_free, start_date, end_date, avg_periods, div_yield, first_point):
-    check_val_as = price, strike, sigma, risk_free, start_date, end_date, avg_periods, div_yield, first_point
+               Input("avg_periods", "value"), Input("div_yield", "value"), Input("averaging_field", "start_date"),
+               Input("averaging_field", "end_date")])
+def hull_carlo(price, strike, sigma, risk_free, start_date, end_date, avg_periods, div_yield, avg_start, avg_end):
+    check_val_as = price, strike, sigma, risk_free, start_date, end_date, avg_periods, div_yield, avg_start, avg_end
     if not all(inp is not None for inp in check_val_as):
         raise dash.exceptions.PreventUpdate()
     as_calculator = MonteCarlo(price, strike, risk_free, sigma,
                                datetime.datetime.strptime(start_date, '%Y-%m-%d').strftime('%d/%m/%Y'),
                                datetime.datetime.strptime(end_date, '%Y-%m-%d').strftime('%d/%m/%Y'), avg_periods,
-                               div_yield, first_point)
+                               div_yield,
+                               datetime.datetime.strptime(avg_start, '%Y-%m-%d').strftime('%d/%m/%Y'),
+                               datetime.datetime.strptime(avg_end, '%Y-%m-%d').strftime('%d/%m/%Y'))
     as_calculator.sims()
     as_calculator.price()
     hull_price = Hull(price, strike, risk_free, sigma,
                       datetime.datetime.strptime(start_date, '%Y-%m-%d').strftime('%d/%m/%Y'),
                       datetime.datetime.strptime(end_date, '%Y-%m-%d').strftime('%d/%m/%Y'),
-                      div_yield) if first_point == 1 else [" ", " "]
+                      div_yield) if start_date==avg_start and end_date==avg_end else [" ", " "]
 
     out_asian = [["Колл", f'{hull_price[0]}', f'{as_calculator.call_price}'],
                  ["Пут", f'{hull_price[1]}', f'{as_calculator.put_price}']]

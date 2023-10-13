@@ -1,9 +1,10 @@
 import numpy as np
 import pandas as pd
 from scipy.stats import norm
+from math import floor
 
 class MonteCarlo():
-    def __init__(self, S, K, r, sigma, start, end, steps, q, d):
+    def __init__(self, S, K, r, sigma, start, end, steps, q, avg_start, avg_end):
         self.S = S
         self.K = K
         self.r = r/100
@@ -16,7 +17,9 @@ class MonteCarlo():
 
         self.steps = steps
         self.q = q/100
-        self.d = d
+
+        self.avg_start = pd.to_datetime(avg_start, dayfirst=True)
+        self.avg_end = pd.to_datetime(avg_end, dayfirst=True)
 
     def sims(self, sims_num=10**4):
         n_sims = sims_num
@@ -36,8 +39,11 @@ class MonteCarlo():
         return self.simulation
             
     def price(self):
-        means = self.simulation[self.d-1:, :].mean(axis=0)
+        start = floor(((self.avg_start - self.start).days)*252/365)
+        end = floor(((self.avg_end-self.start).days)*252/365)
 
+        means = self.simulation[start:end, :].mean(axis=0)
+        print(start, end, len(means))
         self.call_price = (np.where(means-self.K>0, means-self.K, 0)*np.exp(-self.r*self.T)).mean()
         self.put_price =  (np.where(self.K - means>0, self.K - means, 0)*np.exp(-self.r*self.T)).mean()
 

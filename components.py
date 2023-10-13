@@ -94,7 +94,7 @@ risk_free_field = dbc.Row([
     ], style = row_style)
 
 asian_1_field = dbc.Row([
-    dbc.Col(html.H6('Кол-во точек усреднения')),
+    dbc.Col(html.H6('Кол-во точек до экспирации')),
     dbc.Col(dcc.Input(id='avg_periods', value=2, type='number', style=input_style))
     ], style = row_style)
 
@@ -102,20 +102,6 @@ asian_2_field = dbc.Row([
     dbc.Col(html.H6('Дивидендная доходность, %')),
     dbc.Col(dcc.Input(id='div_yield', value=0, type='number', style=input_style))
     ], style = row_style)
-
-asian_3_field = dbc.Row([
-    dbc.Col(html.H6('Номер первой точки усреднения')),
-    dbc.Col(dcc.Input(id='first_point', value=1, type='number', style=input_style))
-    ], style = row_style)
-
-asian_inputs = html.Div(children=[asian_1_field, asian_2_field, asian_3_field], style={'width':'450px',
-                               "border":"2px black solid",
-                               "marginTop":"10px",
-                               "border-radius":"10px"})
-
-asian_fin = html.Div(id="asian_input_div",
-                               children = [html.Div(children=[html.H2("Границы периода"), asian_inputs]), html.Div(blank_table_asian, id='hull_carlo')])
-
 
 
 date_field = html.Div(
@@ -130,8 +116,32 @@ date_field = html.Div(
                         'marginLeft':"20px",
                         'marginBottom':"20px",
                         'marginTop':"20px",
-                        'text-align':"center"})
-            )
+                        'text-align':"center"}))
+
+averaging_field = html.Div(
+        dcc.DatePickerRange(
+                id='averaging_field',
+                clearable=True,
+                display_format='D.M.Y',
+                start_date=datetime.date.today().strftime("%Y-%m-%d"),
+                end_date=(datetime.date.today() + relativedelta.relativedelta(months=1)).strftime("%Y-%m-%d"),
+                style= {"width": "400px",
+                        'marginRight':"25px",
+                        'marginLeft':"20px",
+                        'marginBottom':"20px",
+                        'marginTop':"20px",
+                        'text-align':"center"}))
+
+asian_inputs = html.Div(children=[asian_1_field, asian_2_field, averaging_field], style={'width':'450px',
+                               "border":"2px black solid",
+                               "marginTop":"10px",
+                               "border-radius":"10px"})
+
+
+
+asian_fin = html.Div(id="asian_input_div",
+                               children = [html.Div(children=[html.H2("Границы периода"), asian_inputs]), html.Div(blank_table_asian, id='hull_carlo')])
+
 
 greeks_table = html.Div(id='table_update',
                         children=[html.H2("Модель Блэка-Шоулза", style={'textAlign':'center'}), blank_table])
